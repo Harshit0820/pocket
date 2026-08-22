@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #070b14;
+  --accent: #5eead4;
+  font-family: "Sora", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: var(--bg);
+  color: #e8eefc;
+}
+
+body {
+  margin: 0;
+  background-image:
+    radial-gradient(1200px 600px at 10% -10%, #134e4a55, transparent 50%),
+    radial-gradient(800px 500px at 100% 0%, #1e1b4b66, transparent 45%),
+    linear-gradient(#070b14, #070b14);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
