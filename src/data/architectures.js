@@ -1,3 +1,6 @@
+import { nodeStory } from './nodeStories.js'
+import { companyExtra } from './companyExtras.js'
+
 function n(id, title, kind, blurb, depth) {
   return { id, title, kind, blurb, depth }
 }
@@ -23,6 +26,8 @@ const PATTERNS = {
       n('encoder', 'Transcoders', 'workers', 'Many resolutions/codecs off the request path.', 5),
       n('origin', 'Origin / packager', 'blob', 'Fills the CDN on cache miss.', 5),
       n('notify', 'Messaging', 'workers', '“New episode” and device sync.', 6),
+      n('abr', 'Bitrate / ABR', 'service', 'Picks a quality as the network changes.', 2),
+      n('telemetry', 'Play quality logs', 'queue', 'Stalls and bitrate — after play, not on the Play tap.', 6),
     ],
     edges: [
       ['client', 'dns', 'find nearest'],
@@ -46,14 +51,16 @@ const PATTERNS = {
       ['encoder', 'blob', 'packaged output'],
       ['catalog', 'queue', 'publish job'],
       ['notify', 'userdb', 'who to ping'],
+      ['playback', 'abr', 'which quality'],
+      ['playback', 'telemetry', 'quality after play'],
     ],
     stages: [
       { ids: ['client', 'dns', 'cdn', 'api'], blurb: 'Two roads already: the app talks to an API for “what to play,” and video files come from a nearby copy (CDN)—not from a far-away warehouse first.' },
-      { ids: ['auth', 'playback', 'catalog', 'drm'], blurb: 'Next: prove who you are, look up the title, start playback, and get a license. Play is several services, not one video database.' },
+      { ids: ['auth', 'playback', 'catalog', 'drm', 'abr'], blurb: 'Next: who you are, which title, start playback, a license, and which quality. Play is several services, not one video database.' },
       { ids: ['recs', 'cfg', 'cache'], blurb: 'The homepage is ranked for you. Frequent answers (titles, session) sit in a fast cache so the database is not hit every time.' },
       { ids: ['userdb', 'metadb', 'blob'], blurb: 'Three stores: your history, the title catalog, and the actual video files. Mixing them would be slow and expensive.' },
       { ids: ['queue', 'encoder', 'origin'], blurb: 'New videos are encoded in the background. If the nearby copy misses, origin fetches from the file warehouse.' },
-      { ids: ['notify'], blurb: '“New episode” texts are a background job. They are not part of the Play button request.' },
+      { ids: ['notify', 'telemetry'], blurb: '“New episode” texts and play-quality logs are background jobs. They are not part of the Play button request.' },
     ],
   },
   marketplace: {
@@ -75,6 +82,7 @@ const PATTERNS = {
       n('pay', 'Payments', 'workers', 'Authorize, capture, payout.', 5),
       n('notify', 'Push / SMS', 'workers', '“Your driver is here.”', 6),
       n('maps', 'Maps / routing', 'service', 'Turn-by-turn and distance.', 6),
+      n('promo', 'Promos / credits', 'service', 'Coupons on the quote — not only in the app.', 2),
     ],
     edges: [
       ['client', 'api', 'search / order'],
@@ -96,10 +104,11 @@ const PATTERNS = {
       ['queue', 'pay', 'charge later'],
       ['pricing', 'pay', 'amount'],
       ['geo', 'maps', 'route'],
+      ['pricing', 'promo', 'apply credit'],
     ],
     stages: [
       { ids: ['client', 'supply', 'api', 'cdn'], blurb: 'Two apps (customer and driver/host) share one front door. Photos already come from a nearby CDN.' },
-      { ids: ['auth', 'match', 'pricing'], blurb: 'Matching people and quoting a price are their own services—not one database query.' },
+      { ids: ['auth', 'match', 'pricing', 'promo'], blurb: 'Matching, price, and promos are their own services—not one database query.' },
       { ids: ['geo', 'eta', 'cache'], blurb: 'Phones send location often. A geo index plus cache, and a separate ETA service, keep maps snappy.' },
       { ids: ['tripdb', 'listdb', 'blob'], blurb: 'Live trips, the catalog of listings, and pictures are three different stores.' },
       { ids: ['queue', 'pay'], blurb: 'After you tap, notify the other side and take payment in the background so the app does not freeze.' },
@@ -324,26 +333,42 @@ const PATTERNS = {
 }
 
 function fill(str, company) {
-  return str.replaceAll('{asset}', company.asset).replaceAll('{name}', company.name)
+  return str
+    .replaceAll('{asset}', company.asset)
+    .replaceAll('{name}', company.name)
+    .replaceAll('{verb}', company.verb)
 }
 
 export function buildArchitecture(company) {
   const p = PATTERNS[company.kind] || PATTERNS.streaming
+  const extra = companyExtra(company)
   const nodes = p.nodes.map((node) => ({
     ...node,
     title: fill(node.title, company),
     blurb: fill(node.blurb, company),
+    story: nodeStory(node, company),
   }))
+  if (extra) {
+    nodes.push({
+      ...extra.node,
+      blurb: fill(extra.node.blurb, company),
+      story: fill(extra.node.blurb, company),
+    })
+  }
+  const edges = p.edges.map(([from, to, label]) => ({ from, to, label: label || 'then' }))
+  if (extra) edges.push(extra.edge)
+
   return {
     nodes,
-    edges: p.edges.map(([from, to, label]) => ({ from, to, label: label || 'then' })),
+    edges,
     stages: p.stages.map((s, i) => ({
       i,
       blurb: fill(s.blurb, company),
-      unlockNodeIds: s.ids,
-      unlockEdgeIds: p.edges
-        .filter(([a, b]) => s.ids.includes(a) || s.ids.includes(b))
-        .map(([a, b]) => `${a}->${b}`),
+      unlockNodeIds:
+        extra && i === p.stages.length - 1 ? [...s.ids, extra.node.id] : s.ids,
+      unlockEdgeIds: edges
+        .filter(({ from, to }) => s.ids.includes(from) || s.ids.includes(to))
+        .map(({ from, to }) => `${from}->${to}`),
     })),
   }
 }

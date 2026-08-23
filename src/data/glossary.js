@@ -16,9 +16,9 @@ export const EXPERIENCE_LEVELS = [
   },
 ]
 
-/** Same ramp for every experience level: 5, 7, 9, then 11. */
+/** 3 questions per gate (4 on later layers). */
 export function questionsForGate(_levelId, stageIndex) {
-  return Math.min(11, 5 + stageIndex * 2)
+  return stageIndex >= 3 ? 5 : 4
 }
 
 export const TERMS = {

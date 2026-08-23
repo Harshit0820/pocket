@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { T_BODY_SM, T_BTN, T_CAPTION, T_LABEL } from '../ui/typography.js'
 
 const KIND = {
   client: { bar: '#38bdf8', icon: '📱', from: 'from-sky-400/25' },
@@ -18,7 +19,7 @@ function NodeCard({ n, selected, accent, onSelect, locked }) {
   if (locked) {
     return (
       <div className="flex-1 min-w-[44%] rounded-3xl border border-dashed border-white/12 bg-white/[0.03] p-3.5 text-left">
-        <div className="text-[10px] text-white/30 tracking-widest uppercase">next layer</div>
+        <div className={`${T_LABEL} text-white/30`}>next layer</div>
         <div className="mt-2 h-2 w-16 rounded-full bg-white/10" />
         <div className="mt-2 h-2 w-24 rounded-full bg-white/8" />
       </div>
@@ -46,10 +47,10 @@ function NodeCard({ n, selected, accent, onSelect, locked }) {
         >
           {k.icon}
         </span>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-white/45">{n.kind}</span>
+        <span className={`${T_CAPTION} uppercase tracking-[0.14em] text-white/45`}>{n.kind}</span>
       </div>
-      <div className="text-[15px] font-medium leading-snug">{n.title}</div>
-      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{n.blurb}</p>
+      <div className="text-sm sm:text-[15px] font-medium leading-snug text-slate-100">{n.title}</div>
+      <p className={`${T_BODY_SM} text-slate-400 mt-1`}>{n.blurb}</p>
       <div className="mt-2 h-0.5 w-8 rounded-full" style={{ background: k.bar }} />
     </motion.button>
   )
@@ -96,7 +97,7 @@ export function FlowMap({ nodes, edges, unlocked, selectedId, onSelect, accent, 
                       {labels.slice(0, 4).map((lab) => (
                         <span
                           key={lab}
-                          className="text-[10px] text-slate-400 border border-white/12 rounded px-1.5 py-px"
+                          className={`${T_CAPTION} border border-white/12 rounded px-1.5 py-px text-slate-400`}
                         >
                           {lab}
                         </span>
@@ -121,13 +122,13 @@ export function FlowMap({ nodes, edges, unlocked, selectedId, onSelect, accent, 
           )
         })}
         {lockedCount > 0 && (
-          <div className="mt-5 rounded-2xl border border-dashed border-teal-300/20 bg-teal-300/5 p-4 text-center text-slate-400 text-sm">
+          <div className={`mt-5 rounded-2xl border border-dashed border-teal-300/20 bg-teal-300/5 p-4 text-center ${T_BODY_SM} text-slate-400`}>
             {lockedCount} more pieces still locked
             {gate && (
               <div className="mt-3">
                 <button
                   onClick={gate}
-                  className="rounded-full bg-teal-300 text-slate-900 font-semibold px-5 py-2.5 shadow-[0_0_24px_rgba(45,212,191,0.45)]"
+                  className={`rounded-full bg-teal-300 text-slate-900 px-5 py-2.5 shadow-[0_0_24px_rgba(45,212,191,0.45)] ${T_BTN}`}
                 >
                   What happens next?
                 </button>

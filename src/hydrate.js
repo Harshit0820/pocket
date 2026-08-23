@@ -18,14 +18,16 @@ export function fill(str, company, level) {
 
 export function hydrateQuestion(raw, template, company, level) {
   const ids = [raw.correct, ...raw.distractors]
-  const choices = ids
-    .map((id) => ({
-      id,
-      text: fill(template.labels[id], company, level),
-      correct: id === raw.correct,
-      tutorReply: fill(template.replies[id], company, level),
-    }))
-    .sort((a, b) => ((raw.seed + a.id.charCodeAt(0)) % 97) - ((raw.seed + b.id.charCodeAt(0)) % 97))
+  const choices = ids.map((id) => ({
+    id,
+    text: fill(template.labels[id], company, level),
+    correct: id === raw.correct,
+    tutorReply: fill(template.replies[id], company, level),
+  }))
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[choices[i], choices[j]] = [choices[j], choices[i]]
+  }
   return {
     id: raw.id,
     prompt: fill(template.prompts[raw.variant], company, level),

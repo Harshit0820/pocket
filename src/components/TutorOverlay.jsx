@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { T_BODY, T_BODY_SM, T_BTN, T_BTN_OPTION, T_META } from '../ui/typography.js'
 
 export function TutorOverlay({
   open,
@@ -8,16 +9,17 @@ export function TutorOverlay({
   total,
   onAnswer,
   onCloseReady,
-  waiting,
   onCloseQuiz,
   onLeaveLesson,
 }) {
   const [picked, setPicked] = useState(null)
   const [feedback, setFeedback] = useState(null)
+  const [wrongIds, setWrongIds] = useState(() => new Set())
 
   useEffect(() => {
     setPicked(null)
     setFeedback(null)
+    setWrongIds(new Set())
   }, [question?.id])
 
   useEffect(() => {
@@ -32,11 +34,11 @@ export function TutorOverlay({
   if (!open || !question) return null
 
   function choose(c) {
-    if (picked) return
+    if (feedback?.correct) return
     setPicked(c.id)
     setFeedback(c)
-    if (c.correct) {
-      setFeedback(c)
+    if (!c.correct) {
+      setWrongIds((prev) => new Set(prev).add(c.id))
     }
   }
 
@@ -61,7 +63,7 @@ export function TutorOverlay({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-white/20 sm:hidden" />
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
+          <div className={`flex items-center justify-between ${T_META} mb-4`}>
             <span>Tutor</span>
             <div className="flex items-center gap-3">
               <span>
@@ -78,22 +80,25 @@ export function TutorOverlay({
             </div>
           </div>
           <div className="rounded-2xl bg-white/8 border border-white/10 p-4 mb-4">
-            <p className="text-[15px] leading-relaxed text-slate-100">{question.prompt}</p>
+            <p className={`${T_BODY} text-slate-100`}>{question.prompt}</p>
           </div>
           <div className="flex flex-col gap-2">
             {question.choices.map((c) => {
               const selected = picked === c.id
-              const show = picked && selected
+              const wasWrong = wrongIds.has(c.id)
+              const showCorrect = feedback?.correct && c.correct
               return (
                 <button
                   key={c.id}
                   onClick={() => choose(c)}
-                  className={`text-left rounded-2xl border px-4 py-3 text-sm ${
-                    show && c.correct
+                  className={`text-left rounded-2xl border px-4 py-3 ${T_BTN_OPTION} ${
+                    showCorrect
                       ? 'border-teal-300 bg-teal-300/15'
-                      : show && !c.correct
-                        ? 'border-amber-300 bg-amber-300/10'
-                        : 'border-white/10 bg-white/5'
+                      : wasWrong
+                        ? 'border-amber-300/80 bg-amber-300/10 opacity-80'
+                        : selected
+                          ? 'border-white/30 bg-white/10'
+                          : 'border-white/10 bg-white/5'
                   }`}
                 >
                   {c.text}
@@ -105,33 +110,26 @@ export function TutorOverlay({
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`mt-4 rounded-2xl p-4 text-sm ${
+              className={`mt-4 rounded-2xl p-4 ${T_BODY_SM} ${
                 feedback.correct ? 'bg-teal-300/10 text-teal-100' : 'bg-amber-300/10 text-amber-100'
               }`}
             >
               {feedback.tutorReply}
-              {!feedback.correct && (
-                <button className="block mt-2 text-white underline" onClick={() => { setPicked(null); setFeedback(null) }}>
-                  Try again
-                </button>
-              )}
-              {feedback.correct && !waiting && (
+              {feedback.correct && (
                 <button
                   type="button"
-                  onClick={() => onAnswer(true)}
-                  className="mt-3 w-full rounded-full bg-teal-300 text-slate-900 font-semibold py-2.5"
+                  onClick={() => {
+                    if (index < total - 1) onAnswer(true)
+                    else onCloseReady()
+                  }}
+                  className={`mt-3 w-full rounded-full bg-teal-300 text-slate-900 py-2.5 ${T_BTN}`}
                 >
-                  {index < total - 1 ? 'Next question' : 'Continue'}
+                  {index < total - 1 ? 'Next question' : 'Unlock next section'}
                 </button>
               )}
             </motion.div>
           )}
-          {waiting && (
-            <button onClick={onCloseReady} className="mt-4 w-full rounded-full bg-teal-300 text-slate-900 font-semibold py-3">
-              See the next pieces
-            </button>
-          )}
-          <div className="mt-5 flex items-center justify-between text-sm">
+          <div className={`mt-5 flex items-center justify-between ${T_BODY_SM}`}>
             <button type="button" onClick={onCloseQuiz} className="text-slate-400">
               Close for now
             </button>

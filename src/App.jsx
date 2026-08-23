@@ -1,11 +1,12 @@
 import { COMPANIES } from './data/companies.js'
-import { EXPERIENCE_LEVELS } from './data/glossary.js'
 import { TEMPLATES } from './data/templates.js'
 import { hydrateQuestion } from './hydrate.js'
+import { normalizeAiProgress } from './utils/aiProgress.js'
 import { loadState, saveState } from './storage.js'
-import { ExperienceOnboarding } from './components/ExperienceOnboarding.jsx'
 import { CompanyPicker } from './components/CompanyPicker.jsx'
 import { LessonView } from './components/LessonView.jsx'
+import { SubjectPicker } from './components/SubjectPicker.jsx'
+import { AppliedAIHome } from './components/AppliedAIHome.jsx'
 import { useEffect, useMemo, useState } from 'react'
 
 export default function App() {
@@ -13,11 +14,18 @@ export default function App() {
   const [lesson, setLesson] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const experience = state.experience
-  const screen = !experience ? 'onboard' : state.companyId ? 'lesson' : 'home'
+  const experience = state.experience || 'starter'
+  const subject = state.subject
+  const screen = !subject
+    ? 'subjects'
+    : subject === 'applied-ai'
+      ? 'applied-ai'
+      : state.companyId
+        ? 'lesson'
+        : 'home'
 
   useEffect(() => {
-    if (!state.companyId) {
+    if (subject !== 'hld' || !state.companyId) {
       setLesson(null)
       return
     }
@@ -34,7 +42,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [state.companyId])
+  }, [state.companyId, subject])
 
   const company = useMemo(
     () => COMPANIES.find((c) => c.id === state.companyId),
@@ -45,11 +53,22 @@ export default function App() {
     setState(saveState(p))
   }
 
-  if (screen === 'onboard') {
+  if (screen === 'subjects') {
     return (
-      <ExperienceOnboarding
-        levels={EXPERIENCE_LEVELS}
-        onPick={(id) => patch({ experience: id })}
+      <SubjectPicker
+        onPick={(subject) => patch({ subject, companyId: undefined })}
+      />
+    )
+  }
+
+  if (screen === 'applied-ai') {
+    return (
+      <AppliedAIHome
+        onBack={() => patch({ subject: undefined })}
+        aiLevel={state.aiLevel || 'beginner'}
+        onAiLevel={(aiLevel) => patch({ aiLevel })}
+        aiProgress={normalizeAiProgress(state.aiProgress)}
+        onAiProgress={(aiProgress) => patch({ aiProgress: normalizeAiProgress(aiProgress) })}
       />
     )
   }
@@ -60,7 +79,8 @@ export default function App() {
         companies={COMPANIES}
         experience={experience}
         resumeId={state.lastCompanyId}
-        onExperience={() => patch({ experience: undefined })}
+        onExperience={(experience) => patch({ experience })}
+        onSubjects={() => patch({ subject: undefined })}
         onClearResume={() => patch({ lastCompanyId: undefined, companyId: undefined })}
         onPick={(id) =>
           patch({
@@ -89,6 +109,13 @@ export default function App() {
         })
       }
       onHome={() => patch({ companyId: undefined, lastCompanyId: state.companyId })}
+      onExperience={(experience) => patch({ experience })}
+      onResetProgress={() =>
+        patch({
+          stageIndex: 0,
+          progress: { ...(state.progress || {}), [state.companyId]: 0 },
+        })
+      }
     />
   )
 }

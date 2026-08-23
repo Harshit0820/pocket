@@ -1,0 +1,78 @@
+/** Longer, app-specific copy shown when a map box is tapped. */
+const BY_KIND = {
+  client: 'This is the {name} app on your phone or laptop. Tapping {verb} starts here. The app does not hold the whole product — it only starts the request.',
+  api: 'Think of this as {name}’s front desk. The app asks it for “what’s allowed / what’s next,” not for huge {asset}. It routes, limits traffic, and hides internal stores.',
+  auth: 'Before {name} shows anything private, it checks who you are (account, session, device). A CDN copy of a file is not the same as being logged in.',
+  service: 'A {name} service does one job in the middle — matching, playback, ranking, checkout — so the app does not talk to every database itself.',
+  cache: 'The same questions get asked thousands of times (session, “is this still available?”). {name} keeps those answers in fast memory so the main database is not hit every time.',
+  db: 'This is {name}’s notebook of records: accounts, titles, orders, messages. Small rows you can query — not the giant {asset} files.',
+  queue: 'Slow leftover work (encode, notify, payout) waits here after you already succeeded at {verb}. The tap can return; workers finish later.',
+  workers: 'Background helpers at {name}. They retry if something fails. They are not sitting on the button you just pressed.',
+  blob: 'The warehouse for large {asset}. Cheap to store, not great for “show my last 20 items.” {name} points at these files from the records database.',
+  cdn: 'When millions of people {verb} the same thing, {name} keeps popular {asset} on machines in many cities. Your phone talks to a nearby copy first — not a far-away warehouse.',
+}
+
+const BY_ID = {
+  dns: 'Your phone asks “where is the nearest {name} door?” DNS points at a close edge so the first hop is short.',
+  cdn: 'On {name}, bulky {asset} are copied around the world. Play/browse should hit a nearby copy. If that copy is missing, a miss goes back to origin.',
+  origin: 'Only used when the nearby copy does not have that {asset} yet. Origin fetches from the warehouse and restocks the CDN — it should not be on every Play.',
+  encoder: '{name} does not wait while you tap {verb} to create every quality. Extra sizes and formats are cooked in the background from a master file.',
+  drm: 'Even after {asset} arrive, {name} checks a license: this device, this title, this window of time. Stops a stolen file from playing everywhere.',
+  recs: 'The “because you watched…” row is scored from your history and the catalog. Your phone does not download the whole library to rank it.',
+  cfg: '{name} can show two homepages to two similar users (experiments). That config is a service, not a one-off if-statement in the app.',
+  playback: 'Playback on {name} is “which file, which quality, am I allowed?” — not “dump the whole movie from a database.”',
+  catalog: 'The list of what exists (titles, seasons, regions). It is metadata, not the video bytes you watch.',
+  userdb: 'Your continue-watching / saved list lives here. It is tiny compared with {asset}, and it is queried often.',
+  metadb: 'The official map of titles and relationships. Separate from your personal history and from the video warehouse.',
+  notify: '“New episode” or “your driver is here” is a background ping. It is not part of the Play / tap request that already succeeded.',
+  supply: 'The other side of {name}: driver, host, or shop. Same company, different app, same front door.',
+  match: 'Who is nearby and free? {name} treats matching as its own service because location and availability change every second.',
+  pricing: 'The quote you see (including busy-area pricing) is computed, not a single frozen number in a spreadsheet.',
+  geo: 'Phones send location often. {name} needs a geo index — a normal list of users would be too slow to search by “near me.”',
+  eta: '“Arrives in 4 min” is estimated from pings and traffic. That is its own job, not a random guess in the matching service.',
+  tripdb: 'The live trip or order and its states (requested → assigned → done). Different from the catalog of what you can buy.',
+  listdb: 'Homes, menu items, products — the catalog. Pictures of them live elsewhere.',
+  pay: 'Money moves after the tap. {name} should not freeze the app while banks respond.',
+  maps: 'Turn-by-turn is a map/routing product sitting next to {name}, not something every phone computes from scratch with no server.',
+  feed: 'Your timeline is assembled and ranked. It is not “dump every post in the world in time order.”',
+  post: 'Creating a post should feel instant. Telling millions of followers is leftover work on a queue.',
+  graph: 'Who follows whom. Fan-out and privacy both start from this graph.',
+  rank: 'Which story is on top. Signals (who you care about, what you watched) — not a random shuffle.',
+  gw: 'Chat on {name} keeps a live wire open so bubbles appear without a full page load each time.',
+  lb: 'Millions of open chats are spread across many connection machines so one box is not a single point of failure.',
+  presence: 'Green dot / typing… is a high-churn signal. It is not stored like a 10-year message archive.',
+  msg: 'The router for a chat item: persist it, send it, retry if the other phone is asleep.',
+  media: 'Photos and voice notes are a separate path from short text. They are large {asset}.',
+  msgdb: 'Years of chats, split by conversation. Not the same store as group member lists.',
+  intent: 'A payment on {name} is an object you can retry safely — so a double-tap should not double-charge.',
+  risk: 'Before money moves, {name} scores “does this look like fraud?” as its own step.',
+  vault: 'Card numbers are stored as tokens. {name}’s logs should not keep raw cards.',
+  ledger: 'The money diary. Append-only facts of what moved — separate from merchant settings.',
+  merchdb: 'Shop settings, payout schedule, webhook URLs. Not the ledger of every cent.',
+  network: 'Visa/banks authorize the card. {name} does not print money; it asks the network.',
+  audit: 'A trail for “what happened.” Needed for disputes and regulators.',
+  meta: 'Folder names, sharing, versions. The tree of files — not the file bytes.',
+  block: '{name} splits a large upload into chunks so a flaky wifi can retry a piece, not the whole file.',
+  dedup: 'If that chunk was already stored (same photo, same backup), skip shipping it again.',
+  sync: 'Your other devices hear “there is a new version.” They pull; the upload already succeeded.',
+  search: 'Find inside files or posts. That is an index, not the warehouse itself.',
+  fe: 'The page or app shell for {name} search. It is not the entire index.',
+  spell: '“Did you mean…?” as you type. A small service around the same query.',
+  ads: 'If {name} shows ads, that auction sits beside organic results — it is not the index.',
+  index: 'The lookup book. This is what a query actually searches, not a scan of every page.',
+  doc: 'Snippets, titles, places — the text you see under a result.',
+  crawlq: 'New pages wait to be fetched. Crawling is not done while you press Search.',
+  crawler: 'Fetches and parses pages in the background so the index can stay fresh.',
+  indexw: 'Rewrites index shards from the raw corpus. Continuous, not on your keystroke.',
+  abr: 'As your wifi changes, {name} switches {asset} quality. That decision is not “one giant file or nothing.”',
+  telemetry: '{name} logs stalls and quality after play. That telemetry is a background stream, not the Play path itself.',
+  promo: 'Coupons and credits on {name} are rules on the quote — they should not live only in the app where people can cheat.',
+}
+
+export function nodeStory(node, company) {
+  const raw = BY_ID[node.id] || BY_KIND[node.kind] || node.blurb
+  return raw
+    .replaceAll('{name}', company.name)
+    .replaceAll('{asset}', company.asset)
+    .replaceAll('{verb}', company.verb)
+}
