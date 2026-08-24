@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { getBeginnerModule } from '../../data/beginnerModules.js'
 import { ModuleInteraction } from './ModuleInteractions.jsx'
+import { PhaseBlocks, PhasePreview, RecapExtras } from './PhaseBlocks.jsx'
 import {
   NavBackButton,
   NavRestartButton,
@@ -33,26 +34,25 @@ function PhaseDots({ phaseIndex, total }) {
   )
 }
 
-function PhaseAside({ children }) {
-  if (!children) return null
+function PhaseAction({ onClick, children, variant = 'primary' }) {
+  const styles =
+    variant === 'primary'
+      ? 'bg-violet-300 text-slate-950 hover:bg-violet-200'
+      : 'border border-violet-300/30 bg-transparent text-violet-100 hover:bg-violet-300/[0.06]'
   return (
-    <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3">
-      <p className={`${T_BODY_SM} text-slate-400`}>
-        <span className="font-medium text-violet-200/90">Remember: </span>
+    <div className="mt-4 flex justify-end">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex min-h-[44px] items-center justify-center rounded-full px-5 py-2.5 ${T_BTN} ${styles}`}
+      >
         {children}
-      </p>
+      </button>
     </div>
   )
 }
 
-function phaseAside(phase) {
-  if (phase.type === 'objective' || phase.type === 'learn' || phase.type === 'experiment') {
-    return phase.data.aside || null
-  }
-  return null
-}
-
-function QuizPanel({ questions, onComplete, resetKey }) {
+function QuizPanel({ questions, onComplete, resetKey, intro }) {
   const [qIndex, setQIndex] = useState(0)
   const [picked, setPicked] = useState(null)
   const q = questions[qIndex]
@@ -71,11 +71,15 @@ function QuizPanel({ questions, onComplete, resetKey }) {
     }
   }
 
+  const wrongHint = picked !== null && picked !== q.correct && q.whyNot?.[picked]
+
   return (
-    <div key={resetKey} className="space-y-5">
+    <div key={resetKey} className="space-y-4">
+      {intro && qIndex === 0 && <p className={T_BODY_SM}>{intro}</p>}
       <p className={T_META}>Check {qIndex + 1} of {questions.length}</p>
+      {q.context && <p className={`${T_BODY_SM} text-slate-400`}>{q.context}</p>}
       <p className={`${T_BODY} font-medium text-slate-100`}>{q.q}</p>
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {q.choices.map((choice, i) => {
           const isPicked = picked === i
           const isCorrect = i === q.correct
@@ -90,7 +94,7 @@ function QuizPanel({ questions, onComplete, resetKey }) {
               key={choice}
               type="button"
               onClick={() => pick(i)}
-              className={`w-full rounded-xl border px-4 py-3.5 text-left transition ${T_BTN_OPTION} ${cls}`}
+              className={`w-full rounded-xl border px-4 py-3 text-left transition ${T_BTN_OPTION} ${cls}`}
             >
               {choice}
             </button>
@@ -98,19 +102,26 @@ function QuizPanel({ questions, onComplete, resetKey }) {
         })}
       </div>
       {picked !== null && (
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2"
+        >
           <p className={T_BODY_SM}>{q.feedback}</p>
-          <button type="button" onClick={next} className={`mt-4 w-full rounded-full bg-violet-300 py-3 ${T_BTN} text-slate-950`}>
+          {wrongHint && (
+            <p className={`${T_BODY_SM} text-amber-200/80`}>
+              <span className="font-medium">Why not that choice: </span>
+              {wrongHint}
+            </p>
+          )}
+          <PhaseAction onClick={next}>
             {qIndex < questions.length - 1 ? 'Next question' : 'See recap'}
-          </button>
+          </PhaseAction>
         </motion.div>
       )}
     </div>
   )
 }
-
-const PHASE_CARD_MIN_H =
-  'min-h-[calc(100dvh-9.75rem)] sm:min-h-[calc(100dvh-10.5rem)]'
 
 export function AppliedAIModule({ moduleId, completed, onBack, onComplete, isLastBeginner }) {
   const module = getBeginnerModule(moduleId)
@@ -119,7 +130,7 @@ export function AppliedAIModule({ moduleId, completed, onBack, onComplete, isLas
     const list = [{ type: 'objective', data: module.objective }]
     module.learn.forEach((step, i) => list.push({ type: 'learn', data: step, learnIndex: i }))
     list.push({ type: 'experiment', data: module.experiment })
-    list.push({ type: 'quiz', data: module.quiz })
+    list.push({ type: 'quiz', data: module.quiz, intro: module.quizIntro })
     list.push({ type: 'recap', data: module.recap })
     return list
   }, [module])
@@ -152,20 +163,17 @@ export function AppliedAIModule({ moduleId, completed, onBack, onComplete, isLas
     recap: 'Recap',
   }
 
-  const aside = phaseAside(phase)
-  const fillViewport = phase.type !== 'quiz'
-
   return (
-    <div className="flex min-h-dvh flex-col pb-10">
+    <div className="min-h-dvh pb-8">
       <PocketNavBar maxWidth="max-w-2xl">
         <NavBackButton onClick={onBack} label="Back to course map" />
         <NavTitle>Section {module.id}</NavTitle>
       </PocketNavBar>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3 sm:px-4">
-        <div className="shrink-0 pt-4">
+      <div className="mx-auto max-w-2xl px-3 sm:px-4">
+        <div className="pt-3">
           <h2 className={`${T_PAGE_TITLE} line-clamp-2`}>{module.title}</h2>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2">
             {phaseIndex > 0 ? (
               <NavRestartButton
                 onClick={restartModule}
@@ -184,7 +192,7 @@ export function AppliedAIModule({ moduleId, completed, onBack, onComplete, isLas
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col pt-4">
+        <div className="pt-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${sessionKey}-${phaseIndex}`}
@@ -192,122 +200,113 @@ export function AppliedAIModule({ moduleId, completed, onBack, onComplete, isLas
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.16 }}
-              className={`flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:rounded-3xl sm:p-7 ${
-                fillViewport ? PHASE_CARD_MIN_H : ''
-              }`}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:rounded-3xl sm:p-6"
             >
-              <p className={`shrink-0 ${T_LABEL} text-violet-300/70`}>{phaseLabel[phase.type]}</p>
+              <p className={`${T_LABEL} text-violet-300/70`}>{phaseLabel[phase.type]}</p>
 
-              <div className={`mt-2 flex flex-1 flex-col ${fillViewport ? 'min-h-0' : ''}`}>
-                {phase.type === 'objective' && (
-                  <>
-                    <h3 className={T_PAGE_TITLE}>{phase.data.heading}</h3>
-                    <p className={`mt-4 ${T_BODY}`}>{phase.data.body}</p>
-                    <ul className={`mt-5 space-y-2.5 ${T_BODY_SM} text-slate-400`}>
-                      {phase.data.bullets.map((b) => (
-                        <li key={b} className="flex gap-2 leading-relaxed">
-                          <span className="shrink-0 text-violet-300">→</span>
-                          {b}
-                        </li>
-                      ))}
-                    </ul>
-                    <PhaseAside>{aside}</PhaseAside>
-                    <button
-                      type="button"
-                      onClick={advance}
-                      className={`mt-auto w-full shrink-0 rounded-full bg-violet-300 py-3 pt-6 ${T_BTN} text-slate-950`}
-                    >
-                      Start section
-                    </button>
-                  </>
-                )}
+              {phase.type === 'objective' && (
+                <>
+                  <h3 className={`mt-1.5 ${T_PAGE_TITLE}`}>{phase.data.heading}</h3>
+                  <p className={`mt-2.5 ${T_BODY}`}>{phase.data.body}</p>
+                  <PhasePreview preview={phase.data.preview} />
+                  <ul className={`mt-3 space-y-2 ${T_BODY_SM} text-slate-400`}>
+                    {phase.data.bullets.map((b) => (
+                      <li key={b} className="flex gap-2 leading-relaxed">
+                        <span className="shrink-0 text-violet-300">→</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  <PhaseBlocks blocks={phase.data.blocks} aside={phase.data.aside} />
+                  <PhaseAction onClick={advance}>Start section</PhaseAction>
+                </>
+              )}
 
-                {phase.type === 'learn' && (
-                  <>
-                    <h3 className={T_PAGE_TITLE}>{phase.data.heading}</h3>
-                    <p className={`mt-3 ${T_BODY}`}>{phase.data.body}</p>
-                    <div className="mt-5">
-                      <ModuleInteraction
-                        key={`${sessionKey}-learn-${phase.data.interaction}`}
-                        type={phase.data.interaction}
-                      />
+              {phase.type === 'learn' && (
+                <>
+                  <h3 className={`mt-1.5 ${T_PAGE_TITLE}`}>{phase.data.heading}</h3>
+                  <p className={`mt-2.5 ${T_BODY}`}>{phase.data.body}</p>
+                  <PhaseBlocks blocks={phase.data.blocks?.filter((b) => b.placement === 'before')} />
+                  <div className="mt-3">
+                    <ModuleInteraction
+                      key={`${sessionKey}-learn-${phase.data.interaction}`}
+                      type={phase.data.interaction}
+                    />
+                  </div>
+                  <PhaseBlocks
+                    blocks={phase.data.blocks?.filter((b) => b.placement !== 'before')}
+                    aside={phase.data.aside}
+                  />
+                  <PhaseAction onClick={advance}>
+                    {phaseIndex < phases.length - 2 ? 'Continue' : 'Next step'}
+                  </PhaseAction>
+                </>
+              )}
+
+              {phase.type === 'experiment' && (
+                <>
+                  <h3 className={`mt-1.5 ${T_PAGE_TITLE}`}>{phase.data.heading}</h3>
+                  <p className={`mt-2.5 ${T_BODY}`}>{phase.data.body}</p>
+                  <PhaseBlocks blocks={phase.data.blocks?.filter((b) => b.placement === 'before')} />
+                  <div className="mt-3">
+                    <ModuleInteraction
+                      key={`${sessionKey}-exp-${phase.data.interaction}`}
+                      type={phase.data.interaction}
+                    />
+                  </div>
+                  <PhaseBlocks
+                    blocks={phase.data.blocks?.filter((b) => b.placement !== 'before')}
+                    aside={phase.data.aside}
+                  />
+                  <PhaseAction onClick={advance} variant="secondary">
+                    Continue to checks
+                  </PhaseAction>
+                </>
+              )}
+
+              {phase.type === 'quiz' && (
+                <>
+                  <h3 className={`mt-1.5 ${T_PAGE_TITLE}`}>Knowledge checks</h3>
+                  <div className="mt-3">
+                    <QuizPanel
+                      resetKey={sessionKey}
+                      questions={phase.data}
+                      intro={phase.intro}
+                      onComplete={finish}
+                    />
+                  </div>
+                </>
+              )}
+
+              {phase.type === 'recap' && (
+                <>
+                  <h3 className={`mt-1.5 ${T_PAGE_TITLE}`}>{phase.data.heading}</h3>
+                  <div className={`mt-3 space-y-3 ${T_BODY}`}>
+                    {phase.data.points.map((p) => (
+                      <p key={p.label}>
+                        <strong className="font-medium text-slate-100">{p.label}:</strong> {p.text}
+                      </p>
+                    ))}
+                  </div>
+                  <RecapExtras recap={phase.data} />
+                  {phase.data.labCallout && (
+                    <div className={`mt-3 rounded-xl border border-violet-300/20 bg-violet-300/[0.06] px-3.5 py-2.5 ${T_BODY_SM} text-violet-100`}>
+                      Revisit Guided Lab on the AI home — replay “How are you?” to connect tokens to everyday chat.
                     </div>
-                    <PhaseAside>{aside}</PhaseAside>
-                    <button
-                      type="button"
-                      onClick={advance}
-                      className={`mt-auto w-full shrink-0 rounded-full bg-violet-300 py-3 pt-6 ${T_BTN} text-slate-950`}
-                    >
-                      {phaseIndex < phases.length - 2 ? 'Continue' : 'Next step'}
-                    </button>
-                  </>
-                )}
-
-                {phase.type === 'experiment' && (
-                  <>
-                    <h3 className={T_PAGE_TITLE}>{phase.data.heading}</h3>
-                    <p className={`mt-3 ${T_BODY}`}>{phase.data.body}</p>
-                    <div className="mt-5">
-                      <ModuleInteraction
-                        key={`${sessionKey}-exp-${phase.data.interaction}`}
-                        type={phase.data.interaction}
-                      />
+                  )}
+                  {completed && (
+                    <div className={`mt-3 rounded-xl border border-teal-300/20 bg-teal-300/[0.06] px-3.5 py-2.5 ${T_BODY_SM} text-teal-100`}>
+                      {isLastBeginner
+                        ? 'Beginner course complete! Intermediate modules are coming next.'
+                        : `Section ${module.id} saved — next module unlocked on the course map.`}
                     </div>
-                    <PhaseAside>{aside}</PhaseAside>
-                    <button
-                      type="button"
-                      onClick={advance}
-                      className={`mt-auto w-full shrink-0 rounded-full border border-violet-300/30 py-3 pt-6 ${T_BTN} font-normal text-violet-100`}
-                    >
-                      Continue to checks
-                    </button>
-                  </>
-                )}
-
-                {phase.type === 'quiz' && (
-                  <>
-                    <h3 className={T_PAGE_TITLE}>Knowledge checks</h3>
-                    <div className="mt-5">
-                      <QuizPanel resetKey={sessionKey} questions={phase.data} onComplete={finish} />
-                    </div>
-                  </>
-                )}
-
-                {phase.type === 'recap' && (
-                  <>
-                    <h3 className={T_PAGE_TITLE}>{phase.data.heading}</h3>
-                    <div className={`mt-5 space-y-4 ${T_BODY}`}>
-                      {phase.data.points.map((p) => (
-                        <p key={p.label}>
-                          <strong className="font-medium text-slate-100">{p.label}:</strong> {p.text}
-                        </p>
-                      ))}
-                    </div>
-                    {phase.data.labCallout && (
-                      <div className={`mt-5 rounded-xl border border-violet-300/20 bg-violet-300/[0.06] px-4 py-3 ${T_BODY_SM} text-violet-100`}>
-                        Revisit Guided Lab on the AI home — replay “How are you?” to connect tokens to everyday chat.
-                      </div>
-                    )}
-                    {completed && (
-                      <div className={`mt-4 rounded-xl border border-teal-300/20 bg-teal-300/[0.06] px-4 py-3 ${T_BODY_SM} text-teal-100`}>
-                        {isLastBeginner
-                          ? 'Beginner course complete! Intermediate modules are coming next.'
-                          : `Section ${module.id} saved — next module unlocked on the course map.`}
-                      </div>
-                    )}
-                    <p className={`mt-4 ${T_META}`}>
-                      Use the restart button above to replay this module without removing your completion badge.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onBack}
-                      className={`mt-4 w-full shrink-0 rounded-full bg-violet-300 py-3 ${T_BTN} text-slate-950`}
-                    >
-                      Back to course map
-                    </button>
-                  </>
-                )}
-              </div>
+                  )}
+                  <p className={`mt-3 ${T_META}`}>
+                    Use the restart button above to replay this module without removing your completion badge.
+                  </p>
+                  <PhaseAction onClick={onBack}>Back to course map</PhaseAction>
+                </>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
